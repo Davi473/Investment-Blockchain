@@ -20,7 +20,6 @@ export default class Block {
 		while (true) {
 			this.hash = this.calculateHash();
 			if (this.hash.substring(0, difficulty) === Array(difficulty + 1).join("0")) {
-				// REMOVIDO: console.log("block mined: " + this.hash);
 				break;
 			} else {
 				this.nonce++;

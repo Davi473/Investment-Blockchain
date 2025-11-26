@@ -1,5 +1,9 @@
+import Chain from "../../application/usecase/Chain";
+import Mempool from "../../application/usecase/Mempool";
+import Mine from "../../application/usecase/Mine";
+import Portfolio from "../../application/usecase/Portfolio";
+import UseCaseTransaction from "../../application/usecase/useCaseTransaction";
 import Blockchain from "../../domain/Blockchain";
-import Transaction from "../../domain/Transaction";
 import { Inject } from "../di/Registry";
 import { Body, Controller, Get, Params, Post } from "../http/HttpServer";
 
@@ -7,54 +11,51 @@ import { Body, Controller, Get, Params, Post } from "../http/HttpServer";
 export default class BlockchainController {
     @Inject("blockchain")
     blockchain!: Blockchain;
-
-    BROKER_ADDRESS = 'broker-producer-address';
+    @Inject("chain")
+    useChain!: Chain;
+    @Inject("portfolio")
+    usePortfollio!: Portfolio;
+    @Inject("mempool")
+    useMempool!: Mempool;
+    @Inject("useCaseTransaction")
+    useCaseTransaction!: UseCaseTransaction;
+    @Inject("mine")
+    useCaseMine!: Mine;
+    @Inject("BROKER_ADDRESS")
+    BROKER_ADDRESS!: string;
 
     @Get("/chain")
     public async chain() {
-        return this.blockchain.chain;
+        const output = await this.useChain.execute();
+        return output;
     }
 
     @Get("/portfolio/:address/:asset")
     public async portfolio(@Params() { address, asset }: any) {
-        return this.blockchain.getPortfolioOfAddress(address, asset.toUpperCase());
+        const input = { address, asset };
+        const output = await this.usePortfollio.execute(input);
+        return output;
     }
 
     @Get("/mempool")
     public async mempool() {
-        this.blockchain.mempool;
+        const output = this.useMempool.execute();
+        return output;
     }
 
     @Post("/transaction")
     public async transaction(@Body() { fromAddress, toAddress, amount, currency, price, signature }: any) {
-        if (!toAddress || amount === undefined || !currency || price === undefined) {
-            throw new Error("Missing required transaction fields (toAddress, amount, currency, price).");
-        }
-        const tx = new Transaction(fromAddress || null, toAddress, amount, currency.toUpperCase(), price);
-        if (fromAddress && signature) {
-            tx.sign(signature);
-        } else if (fromAddress) {
-            throw new Error("Transaction requires a signature (for sales/registro).");
-        }
-        this.blockchain.createTransaction(tx);
-        return { message: 'Transaction added to mempool successfully.', transaction: tx };
+        const input = { fromAddress, toAddress, amount, currency, price, signature };
+        const output = await this.useCaseTransaction.execute(input);
+        return output;
     }
 
     @Post("/mine/:asset")
     public async mine(@Params() { asset }: any) {
-        const ticker = asset.toUpperCase();
-
-        if (this.blockchain.mempool.length === 0) {
-            throw new Error("Mempool is empty. No transactions to mine.");
-        }
-
-        this.blockchain.minePendingTransactions(this.BROKER_ADDRESS, ticker);
-        const newBlock = this.blockchain.getLastBlock();
-        return { 
-            message: `Block for ${ticker} successfully processed!`, 
-            blockHash: newBlock.hash,
-            producer: this.BROKER_ADDRESS,
-            transactionsProcessed: newBlock.transactions.length
-        };
+        const input = { asset };
+        const output = await this.useCaseMine.execute(input);
+        return output;
     }
 }
+
+
